@@ -68,7 +68,7 @@ func LikeJoke(c *gin.Context) {
 		// find joke, and increment likes
 		for i := 0; i < len(jokes); i++ {
 			if jokes[i].ID == jokeid {
-				jokes[i].Likes += 1
+				jokes[i].Likes++
 			}
 		}
 		// return a pointer to the updated jokes list
