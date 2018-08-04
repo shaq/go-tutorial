@@ -6,12 +6,21 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"sync"
 )
+
+var wg sync.WaitGroup
 
 // NewsAggPage presents the page for the news aggregator.
 type NewsAggPage struct {
 	Title string
 	News  map[string]NewsMap
+}
+
+// Sitemapindex represents the main site sitemap which lists
+// all other sitemaps.
+type Sitemapindex struct {
+	Locations []string `xml:"sitemap>loc"`
 }
 
 // News represents the Titles, Keywords, and Locations of a
@@ -37,11 +46,16 @@ func about(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Expert web design by Shaquizzle :)")
 }
 
-func newsAgg(w http.ResponseWriter, r *http.Request) {
-	var n News
-	newsMap := make(map[string]NewsMap)
+func newsRoutine(c chan News, Location string) {
 
-	resp, err := http.Get("https://www.theguardian.com/sitemaps/news.xml")
+}
+
+func newsAgg(w http.ResponseWriter, r *http.Request) {
+	var s Sitemapindex
+	var n News
+
+	newsMap := make(map[string]NewsMap)
+	resp, err := http.Get("https://www.telegraph.co.uk/sitemap.xml")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -50,11 +64,17 @@ func newsAgg(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println(err)
 	}
+	xml.Unmarshal(bytes, &s)
 
-	xml.Unmarshal(bytes, &n)
+	for _, Loc := range s.Locations {
+		resp, _ := http.Get(Loc)
+		bytes, _ := ioutil.ReadAll(resp.Body)
+		xml.Unmarshal(bytes, &n)
+		resp.Body.Close()
 
-	for idx := range n.Titles {
-		newsMap[n.Titles[idx]] = NewsMap{n.Keywords[idx], n.Location[idx]}
+		for idx := range n.Titles {
+			newsMap[n.Titles[idx]] = NewsMap{n.Keywords[idx], n.Location[idx]}
+		}
 	}
 
 	p := NewsAggPage{Title: "Shaq's News Aggregator", News: newsMap}
